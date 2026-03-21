@@ -1,17 +1,20 @@
+import { useState } from 'react'
 import useExpenseStore from './store/expenseStore'
 import LandingPage from './components/LandingPage'
 import CalendarView from './components/CalendarView'
 import Analytics from './components/Analytics'
 import Insights from './components/Insights'
 import BottomNav from './components/BottomNav'
+import AddExpenseModal from './components/AddExpenseModal'
 
 export default function App() {
   const currentScreen = useExpenseStore(s => s.currentScreen)
+  const [showAdd, setShowAdd] = useState(false)
+  const today = new Date().toISOString().split('T')[0]
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
 
-      {/* Show landing OR the main app */}
       {currentScreen === 'landing' ? (
         <LandingPage />
       ) : (
@@ -19,7 +22,18 @@ export default function App() {
           {currentScreen === 'calendar'  && <CalendarView />}
           {currentScreen === 'analytics' && <Analytics />}
           {currentScreen === 'insights'  && <Insights />}
-          <BottomNav />
+
+          <BottomNav
+            onAddClick={() => setShowAdd(true)}
+            onCategoriesClick={() => setShowAdd(true)}
+          />
+
+          {showAdd && (
+            <AddExpenseModal
+              date={today}
+              onClose={() => setShowAdd(false)}
+            />
+          )}
         </>
       )}
 
