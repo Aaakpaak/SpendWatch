@@ -26,47 +26,7 @@ function loadFromStorage(key, fallback) {
   }
 }
 
-function seedDemoData() {
-  const categories = DEFAULT_CATEGORIES
-  const today = new Date()
-  const demoData = []
-
-  for (let i = 60; i >= 0; i--) {
-    const d = new Date(today)
-    d.setDate(today.getDate() - i)
-    const dateStr = d.toISOString().split('T')[0]
-    const count = Math.floor(Math.random() * 4)
-
-    for (let j = 0; j < count; j++) {
-      const cat = categories[Math.floor(Math.random() * categories.length)]
-      const amounts = {
-        food: [50,150,250,450],
-        transport: [20,80,150,300],
-        shopping: [200,500,1000,2000],
-        health: [100,300,800],
-        entertainment: [100,300,600],
-        utilities: [500,1000,2000],
-        education: [200,500,1500],
-        other: [50,100,200]
-      }
-      const amtArr = amounts[cat.id] || [100]
-      demoData.push({
-        id: Date.now().toString() + Math.random(),
-        date: dateStr,
-        time: `${String(Math.floor(Math.random()*14)+8).padStart(2,'0')}:${String(Math.floor(Math.random()*60)).padStart(2,'0')}`,
-        amount: amtArr[Math.floor(Math.random() * amtArr.length)],
-        category: cat.id,
-        note: ''
-      })
-    }
-  }
-  return demoData
-}
-
-const savedExpenses = loadFromStorage('spendwatch_expenses', null)
-const initialExpenses = savedExpenses && savedExpenses.length > 0
-  ? savedExpenses
-  : seedDemoData()
+const initialExpenses = loadFromStorage('spendwatch_expenses', [])
 
 const useExpenseStore = create((set, get) => ({
   // ── State ──────────────────────────────
