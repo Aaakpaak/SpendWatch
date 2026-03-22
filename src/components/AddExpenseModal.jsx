@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import useExpenseStore from '../store/expenseStore'
 
 export default function AddExpenseModal({ date, onClose }) {
@@ -10,6 +10,9 @@ export default function AddExpenseModal({ date, onClose }) {
   const [watchHour, setWatchHour]     = useState(now.getHours() % 12 || 12)
   const [watchMinute, setWatchMinute] = useState(now.getMinutes())
   const [watchMode, setWatchMode]     = useState('hour')
+  const [editingTime, setEditingTime] = useState(false)
+  const [editHour, setEditHour]       = useState(String(now.getHours() % 12 || 12).padStart(2,'0'))
+  const [editMinute, setEditMinute]   = useState(String(now.getMinutes()).padStart(2,'0'))
   const [selectedCat, setSelectedCat] = useState(null)
   const [amount, setAmount]           = useState('')
   const [note, setNote]               = useState('')
@@ -17,10 +20,11 @@ export default function AddExpenseModal({ date, onClose }) {
   const [customIcon, setCustomIcon]   = useState('')
   const [customName, setCustomName]   = useState('')
   const [toast, setToast]             = useState('')
-  const faceRef = useRef(null)
+  const faceRef  = useRef(null)
+  const hourRef  = useRef(null)
 
-  const h  = String(watchHour).padStart(2, '0')
-  const m  = String(watchMinute).padStart(2, '0')
+  const h = String(watchHour).padStart(2, '0')
+  const m = String(watchMinute).padStart(2, '0')
   const hourDeg = (watchHour % 12) * 30 + watchMinute * 0.5
   const minDeg  = watchMinute * 6
 
@@ -29,14 +33,31 @@ export default function AddExpenseModal({ date, onClose }) {
     setTimeout(() => setToast(''), 2500)
   }
 
+  // Open inline time editor — pre-fill with current hands
+  function openTimeEdit() {
+    setEditHour(String(watchHour).padStart(2,'0'))
+    setEditMinute(String(watchMinute).padStart(2,'0'))
+    setEditingTime(true)
+    setTimeout(() => hourRef.current?.select(), 50)
+  }
+
+  // Confirm typed time → move hands
+  function confirmTimeEdit() {
+    const h = Math.min(12, Math.max(1, parseInt(editHour)  || 12))
+    const m = Math.min(59, Math.max(0, parseInt(editMinute)|| 0))
+    setWatchHour(h)
+    setWatchMinute(m)
+    setEditingTime(false)
+  }
+
   function handleWatchClick(e) {
-    const rect = faceRef.current.getBoundingClientRect()
-    const cx   = rect.left + rect.width  / 2
-    const cy   = rect.top  + rect.height / 2
+    const rect    = faceRef.current.getBoundingClientRect()
+    const cx      = rect.left + rect.width  / 2
+    const cy      = rect.top  + rect.height / 2
     const clientX = e.touches ? e.touches[0].clientX : e.clientX
     const clientY = e.touches ? e.touches[0].clientY : e.clientY
-    const angle = Math.atan2(clientY - cy, clientX - cx) * 180 / Math.PI + 90
-    const norm  = ((angle % 360) + 360) % 360
+    const angle   = Math.atan2(clientY - cy, clientX - cx) * 180 / Math.PI + 90
+    const norm    = ((angle % 360) + 360) % 360
 
     if (watchMode === 'hour') {
       setWatchHour(Math.round(norm / 30) % 12 || 12)
@@ -50,7 +71,6 @@ export default function AddExpenseModal({ date, onClose }) {
   function handleSave() {
     if (!amount || parseFloat(amount) <= 0) { showToast('Please enter an amount'); return }
     if (!selectedCat) { showToast('Please select a category'); return }
-
     addExpense({
       id:       Date.now().toString(),
       date,
@@ -73,15 +93,10 @@ export default function AddExpenseModal({ date, onClose }) {
     showToast('Category added!')
   }
 
-  // Tick marks for watch face
   const ticks = Array.from({ length: 12 }).map((_, i) => {
     const angle = (i * 30 - 90) * Math.PI / 180
     const r = 82
-    return {
-      x: 100 + r * Math.cos(angle),
-      y: 100 + r * Math.sin(angle),
-      num: i === 0 ? 12 : i
-    }
+    return { x: 100 + r * Math.cos(angle), y: 100 + r * Math.sin(angle), num: i === 0 ? 12 : i }
   })
 
   return (
@@ -120,69 +135,114 @@ export default function AddExpenseModal({ date, onClose }) {
           Add Expense
         </div>
 
-        {/* ── WATCH FACE ── */}
+        {/* ── WATCH ── */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '1.5rem' }}>
 
-          {/* Time display */}
-          <div style={{
-            fontFamily: 'var(--font-head)', fontSize: '2.5rem',
-            fontWeight: 700, letterSpacing: '0.05em',
-            color: 'var(--accent2)', marginBottom: '1rem'
-          }}>
-            {h}:{m}
-          </div>
+          {/* Time display — tap to edit directly */}
+          {editingTime ? (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '4px',
+              marginBottom: '1rem',
+              background: 'var(--bg3)', borderRadius: '16px',
+              padding: '0.5rem 1rem',
+              border: '1px solid var(--accent)',
+            }}>
+              <input
+                ref={hourRef}
+                type="number" min="1" max="12"
+                value={editHour}
+                onChange={e => setEditHour(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && confirmTimeEdit()}
+                style={{
+                  width: '56px', background: 'transparent',
+                  border: 'none', outline: 'none',
+                  fontFamily: 'var(--font-head)', fontSize: '2.5rem',
+                  fontWeight: 700, color: 'var(--accent2)',
+                  textAlign: 'center', MozAppearance: 'textfield',
+                }}
+              />
+              <span style={{
+                fontFamily: 'var(--font-head)', fontSize: '2.5rem',
+                fontWeight: 700, color: 'var(--text3)'
+              }}>:</span>
+              <input
+                type="number" min="0" max="59"
+                value={editMinute}
+                onChange={e => setEditMinute(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && confirmTimeEdit()}
+                style={{
+                  width: '56px', background: 'transparent',
+                  border: 'none', outline: 'none',
+                  fontFamily: 'var(--font-head)', fontSize: '2.5rem',
+                  fontWeight: 700, color: 'var(--accent2)',
+                  textAlign: 'center', MozAppearance: 'textfield',
+                }}
+              />
+              <button
+                onClick={confirmTimeEdit}
+                style={{
+                  marginLeft: '8px', padding: '0.4rem 0.8rem',
+                  background: 'var(--accent)', border: 'none',
+                  borderRadius: '10px', color: '#fff',
+                  fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer'
+                }}
+              >
+                ✓
+              </button>
+            </div>
+          ) : (
+            <div
+              onClick={openTimeEdit}
+              title="Tap to type exact time"
+              style={{
+                fontFamily: 'var(--font-head)', fontSize: '2.5rem',
+                fontWeight: 700, letterSpacing: '0.05em',
+                color: 'var(--accent2)', marginBottom: '1rem',
+                cursor: 'text', borderBottom: '2px dashed rgba(167,139,250,0.3)',
+                paddingBottom: '2px',
+                transition: 'border-color 0.2s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent2)'}
+              onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(167,139,250,0.3)'}
+            >
+              {h}:{m}
+            </div>
+          )}
 
-          {/* Watch circle */}
+          {/* Watch face */}
           <div
             ref={faceRef}
             onClick={handleWatchClick}
             onTouchStart={handleWatchClick}
             style={{
-              width: '200px', height: '200px',
-              borderRadius: '50%',
-              background: 'var(--bg3)',
-              border: '2px solid var(--border)',
+              width: '200px', height: '200px', borderRadius: '50%',
+              background: 'var(--bg3)', border: '2px solid var(--border)',
               position: 'relative', cursor: 'pointer',
               boxShadow: '0 0 40px rgba(108,99,255,0.2)',
               touchAction: 'none',
             }}
           >
-            {/* SVG ticks + hands */}
-            <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} viewBox="0 0 200 200">
-              {/* Hour numbers */}
+            <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%' }} viewBox="0 0 200 200">
               {ticks.map(t => (
-                <text
-                  key={t.num}
-                  x={t.x} y={t.y}
+                <text key={t.num} x={t.x} y={t.y}
                   textAnchor="middle" dominantBaseline="central"
-                  fontSize="11" fill="rgba(157,155,184,0.7)"
-                  fontFamily="Syne"
-                >
-                  {t.num}
-                </text>
+                  fontSize="11" fill="rgba(157,155,184,0.7)" fontFamily="Syne"
+                >{t.num}</text>
               ))}
-
-              {/* Hour hand */}
               <line
                 x1="100" y1="100"
-                x2={100 + 50 * Math.sin((hourDeg) * Math.PI/180)}
-                y2={100 - 50 * Math.cos((hourDeg) * Math.PI/180)}
-                stroke="var(--text)" strokeWidth="4"
-                strokeLinecap="round"
+                x2={100 + 50 * Math.sin(hourDeg * Math.PI/180)}
+                y2={100 - 50 * Math.cos(hourDeg * Math.PI/180)}
+                stroke="var(--text)" strokeWidth="4" strokeLinecap="round"
                 style={{ transition: 'all 0.15s ease' }}
               />
-
-              {/* Minute hand */}
               <line
                 x1="100" y1="100"
-                x2={100 + 70 * Math.sin((minDeg) * Math.PI/180)}
-                y2={100 - 70 * Math.cos((minDeg) * Math.PI/180)}
-                stroke="var(--accent2)" strokeWidth="3"
-                strokeLinecap="round"
+                x2={100 + 70 * Math.sin(minDeg * Math.PI/180)}
+                y2={100 - 70 * Math.cos(minDeg * Math.PI/180)}
+                stroke="var(--accent2)" strokeWidth="3" strokeLinecap="round"
                 style={{ transition: 'all 0.15s ease' }}
               />
-
-              {/* Center dot */}
               <circle cx="100" cy="100" r="4" fill="var(--accent)" />
             </svg>
           </div>
@@ -232,9 +292,7 @@ export default function AddExpenseModal({ date, onClose }) {
             </span>
           </label>
 
-          <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '0.5rem'
-          }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '0.5rem' }}>
             {categories.map(c => (
               <div
                 key={c.id}
@@ -252,8 +310,6 @@ export default function AddExpenseModal({ date, onClose }) {
                 <div style={{ fontSize: '0.6rem', marginTop: '3px' }}>{c.name}</div>
               </div>
             ))}
-
-            {/* Add new tile */}
             <div
               onClick={() => setShowCustom(!showCustom)}
               style={{
@@ -268,7 +324,6 @@ export default function AddExpenseModal({ date, onClose }) {
             </div>
           </div>
 
-          {/* Custom category inline form */}
           {showCustom && (
             <div style={{
               background: 'var(--bg3)', border: '1px solid var(--border)',
@@ -289,9 +344,7 @@ export default function AddExpenseModal({ date, onClose }) {
                   style={{ ...inputStyle, flex: 1 }}
                 />
               </div>
-              <button onClick={handleAddCustomCat} style={submitStyle}>
-                + Add Category
-              </button>
+              <button onClick={handleAddCustomCat} style={submitStyle}>+ Add Category</button>
             </div>
           )}
         </div>
@@ -308,10 +361,7 @@ export default function AddExpenseModal({ date, onClose }) {
           />
         </div>
 
-        {/* ── SAVE ── */}
-        <button onClick={handleSave} style={submitStyle}>
-          Save Expense
-        </button>
+        <button onClick={handleSave} style={submitStyle}>Save Expense</button>
         <button onClick={onClose} style={{
           width: '100%', padding: '0.7rem',
           background: 'none', border: 'none',
@@ -320,10 +370,8 @@ export default function AddExpenseModal({ date, onClose }) {
         }}>
           Cancel
         </button>
-
       </div>
 
-      {/* Toast */}
       {toast && (
         <div style={{
           position: 'fixed', bottom: '90px', left: '50%',
@@ -331,8 +379,7 @@ export default function AddExpenseModal({ date, onClose }) {
           background: 'var(--bg3)', border: '1px solid var(--border)',
           borderRadius: '30px', padding: '0.7rem 1.5rem',
           fontSize: '0.85rem', fontWeight: 500, zIndex: 300,
-          whiteSpace: 'nowrap',
-          animation: 'fadeIn 0.3s ease',
+          whiteSpace: 'nowrap', animation: 'fadeIn 0.3s ease',
         }}>
           {toast}
         </div>
@@ -346,6 +393,8 @@ export default function AddExpenseModal({ date, onClose }) {
         @keyframes fadeIn {
           from { opacity: 0; } to { opacity: 1; }
         }
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
       `}</style>
     </div>
   )
@@ -361,8 +410,7 @@ const inputStyle = {
   width: '100%', background: 'var(--bg3)',
   border: '1px solid var(--border)', borderRadius: '12px',
   padding: '0.75rem 1rem', color: 'var(--text)',
-  fontFamily: 'var(--font-body)', fontSize: '1rem',
-  outline: 'none',
+  fontFamily: 'var(--font-body)', fontSize: '1rem', outline: 'none',
 }
 
 const submitStyle = {

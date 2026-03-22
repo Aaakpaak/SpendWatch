@@ -6,10 +6,12 @@ import Analytics from './components/Analytics'
 import Insights from './components/Insights'
 import BottomNav from './components/BottomNav'
 import AddExpenseModal from './components/AddExpenseModal'
+import CategoriesManager from './components/CategoriesManager'
 
 export default function App() {
   const currentScreen = useExpenseStore(s => s.currentScreen)
-  const [showAdd, setShowAdd] = useState(false)
+  const [showAdd, setShowAdd]   = useState(false)
+  const [showCats, setShowCats] = useState(false)
   const today = new Date().toISOString().split('T')[0]
 
   return (
@@ -24,14 +26,20 @@ export default function App() {
           {currentScreen === 'insights'  && <Insights />}
 
           <BottomNav
-            onAddClick={() => setShowAdd(true)}
-            onCategoriesClick={() => setShowAdd(true)}
+            onAddClick={()        => setShowAdd(true)}
+            onCategoriesClick={()  => setShowCats(true)}
           />
 
           {showAdd && (
             <AddExpenseModal
               date={today}
               onClose={() => setShowAdd(false)}
+            />
+          )}
+
+          {showCats && (
+            <CategoriesManager
+              onClose={() => setShowCats(false)}
             />
           )}
         </>
