@@ -26,14 +26,27 @@ function loadFromStorage(key, fallback) {
   }
 }
 
-const initialExpenses = loadFromStorage('spendwatch_expenses', [])
+// ── Clear demo data for existing users ──
+const appVersion = localStorage.getItem('spendwatch_version')
+if (!appVersion) {
+  const existing = loadFromStorage('spendwatch_expenses', [])
+  const looksLikeDemo = existing.length > 10 && existing.every(e => e.note === '')
+  if (looksLikeDemo) {
+    localStorage.removeItem('spendwatch_expenses')
+  }
+  localStorage.setItem('spendwatch_version', '2')
+}
+
+// ── Load initial data — empty by default ──
+const initialExpenses   = loadFromStorage('spendwatch_expenses', [])
+const initialCategories = loadFromStorage('spendwatch_categories', DEFAULT_CATEGORIES)
 
 const useExpenseStore = create((set, get) => ({
   // ── State ──────────────────────────────
-  expenses: initialExpenses,
-  categories: loadFromStorage('spendwatch_categories', DEFAULT_CATEGORIES),
+  expenses:      initialExpenses,
+  categories:    initialCategories,
   currentScreen: 'landing',
-  currentMonth: new Date().toISOString(),
+  currentMonth:  new Date().toISOString(),
 
   // ── Navigation ─────────────────────────
   setScreen: (screen) => set({ currentScreen: screen }),
@@ -56,12 +69,12 @@ const useExpenseStore = create((set, get) => ({
 
   // ── Categories ─────────────────────────
   addCategory: (name, icon) => {
-    const cats = get().categories
+    const cats  = get().categories
     const newCat = {
-      id: 'custom_' + Date.now(),
-      name: name.slice(0, 14),
-      icon: icon || '📝',
-      color: CAT_COLORS[cats.length % CAT_COLORS.length],
+      id:        'custom_' + Date.now(),
+      name:      name.slice(0, 14),
+      icon:      icon || '📝',
+      color:     CAT_COLORS[cats.length % CAT_COLORS.length],
       isDefault: false
     }
     const updated = [...cats, newCat]
